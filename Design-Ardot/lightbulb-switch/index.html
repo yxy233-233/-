@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>灯泡开关演示</title>
+<style>
+  :root{
+    --page:#eef1f6;
+    --card:#ffffff;
+    --ink:#1b2333;
+    --muted:#6d7789;
+    --line:#e3e8f0;
+    --amber:#ffb01f;
+    --amber-deep:#ff8a00;
+    --switch-off:#ccd3de;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  body{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:40px 20px;
+    background:var(--page);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .card{
+    width:100%;
+    max-width:400px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:26px;
+    overflow:hidden;
+    box-shadow:0 24px 60px -24px rgba(27,35,51,.30), 0 2px 6px rgba(27,35,51,.05);
+  }
+
+  /* ---------- 灯所在的"房间" ---------- */
+  .scene{
+    position:relative;
+    height:320px;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    background:#232a38;
+    transition:background .55s ease;
+    overflow:hidden;
+    cursor:pointer;
+    user-select:none;
+  }
+  .scene.is-on{ background:linear-gradient(180deg,#4a4436 0%,#6b5f45 55%,#8a7a58 100%); }
+
+  /* 灯泡背后的光晕 */
+  .halo{
+    position:absolute;
+    top:150px; left:50%;
+    width:340px; height:340px;
+    transform:translate(-50%,-50%) scale(.4);
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(255,196,80,.85) 0%, rgba(255,170,40,.35) 38%, rgba(255,160,30,0) 70%);
+    opacity:0;
+    transition:opacity .55s ease, transform .55s ease;
+    pointer-events:none;
+  }
+  .scene.is-on .halo{ opacity:1; transform:translate(-50%,-50%) scale(1); }
+
+  /* 地面投影光圈 */
+  .floor{
+    position:absolute;
+    bottom:-70px; left:50%;
+    width:230px; height:120px;
+    transform:translateX(-50%);
+    border-radius:50%;
+    background:radial-gradient(ellipse, rgba(255,200,110,.55) 0%, rgba(255,190,90,0) 70%);
+    opacity:0;
+    transition:opacity .55s ease;
+    pointer-events:none;
+  }
+  .scene.is-on .floor{ opacity:1; }
+
+  .lamp{ position:relative; z-index:2; width:200px; height:300px; }
+
+  /* 玻璃罩 */
+  .glass{
+    fill:#3c4658;
+    stroke:#5b6779;
+    stroke-width:2;
+    transition:fill .55s ease, stroke .55s ease;
+  }
+  .scene.is-on .glass{ fill:#fff6dc; stroke:#ffd77a; }
+
+  /* 灯丝 */
+  .filament{
+    fill:none;
+    stroke:#5c6678;
+    stroke-width:3;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    transition:stroke .55s ease;
+  }
+  .scene.is-on .filament{ stroke:#ff9d2e; }
+
+  .filament-glow{
+    fill:none;
+    stroke:#ffd166;
+    stroke-width:8;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    opacity:0;
+    filter:blur(6px);
+    transition:opacity .55s ease;
+  }
+  .scene.is-on .filament-glow{ opacity:.9; }
+
+  /* 光芒射线 */
+  .ray{
+    stroke:#ffcf6a;
+    stroke-width:4;
+    stroke-linecap:round;
+    opacity:0;
+    transform-origin:100px 152px;
+    transition:opacity .45s ease;
+  }
+  .scene.is-on .ray{ opacity:.85; }
+  .ray:nth-child(odd){ animation:flicker 3.2s ease-in-out infinite; }
+  .ray:nth-child(even){ animation:flicker 3.2s ease-in-out .6s infinite; }
+
+  @keyframes flicker{
+    0%,100%{ opacity:.85 }
+    50%    { opacity:.35 }
+  }
+
+  /* ---------- 控制区 ---------- */
+  .panel{ padding:26px 28px 30px; }
+
+  .title{
+    font-size:17px;
+    font-weight:600;
+    letter-spacing:.2px;
+  }
+  .status{
+    margin-top:6px;
+    font-size:13px;
+    color:var(--muted);
+  }
+  .status b{ color:var(--amber-deep); font-weight:600; }
+
+  .switch-row{
+    margin-top:22px;
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+
+  .switch{
+    position:relative;
+    flex:none;
+    width:64px; height:34px;
+    border:none;
+    border-radius:999px;
+    background:var(--switch-off);
+    cursor:pointer;
+    padding:0;
+    transition:background .3s ease;
+  }
+  .switch::after{
+    content:"";
+    position:absolute;
+    top:4px; left:4px;
+    width:26px; height:26px;
+    border-radius:50%;
+    background:#fff;
+    box-shadow:0 2px 6px rgba(0,0,0,.22);
+    transition:transform .3s cubic-bezier(.34,1.4,.64,1);
+  }
+  .switch[aria-checked="true"]{ background:var(--amber); }
+  .switch[aria-checked="true"]::after{ transform:translateX(30px); }
+  .switch:focus-visible{ outline:3px solid rgba(255,176,31,.45); outline-offset:3px; }
+
+  .switch-label{ font-size:15px; font-weight:600; }
+  .hint{ margin-left:auto; font-size:12px; color:var(--muted); }
+
+  /* 亮度 */
+  .brightness{ margin-top:24px; }
+  .brightness-head{
+    display:flex;
+    justify-content:space-between;
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:9px;
+  }
+  input[type="range"]{
+    width:100%;
+    height:6px;
+    -webkit-appearance:none;
+    appearance:none;
+    border-radius:999px;
+    background:linear-gradient(90deg,var(--amber) var(--pct,70%),#e3e8f0 var(--pct,70%));
+    outline:none;
+    cursor:pointer;
+    transition:opacity .3s ease;
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    appearance:none;
+    width:18px; height:18px;
+    border-radius:50%;
+    background:#fff;
+    border:2px solid var(--amber);
+    box-shadow:0 2px 6px rgba(0,0,0,.18);
+    cursor:pointer;
+  }
+  input[type="range"]::-moz-range-thumb{
+    width:18px; height:18px;
+    border-radius:50%;
+    background:#fff;
+    border:2px solid var(--amber);
+    box-shadow:0 2px 6px rgba(0,0,0,.18);
+    cursor:pointer;
+  }
+  .brightness.disabled{ opacity:.35; pointer-events:none; }
+
+  .counter{
+    margin-top:20px;
+    padding-top:16px;
+    border-top:1px solid var(--line);
+    font-size:12px;
+    color:var(--muted);
+    display:flex;
+    justify-content:space-between;
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{ animation:none !important; transition-duration:.15s !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="scene" id="scene" role="button" tabindex="0" aria-label="灯泡，点击可开关">
+    <div class="halo"></div>
+    <div class="floor"></div>
+
+    <svg class="lamp" viewBox="0 0 200 300" aria-hidden="true">
+      <!-- 吊线 -->
+      <line x1="100" y1="0" x2="100" y2="62" stroke="#7c8798" stroke-width="3"/>
+      <!-- 灯头 -->
+      <rect x="83" y="62" width="34" height="30" rx="6" fill="#98a2b4"/>
+      <g stroke="#7f8a9c" stroke-width="2" stroke-linecap="round">
+        <line x1="86" y1="71" x2="114" y2="71"/>
+        <line x1="86" y1="79" x2="114" y2="79"/>
+        <line x1="86" y1="87" x2="114" y2="87"/>
+      </g>
+
+      <!-- 玻璃泡 -->
+      <path class="glass"
+            d="M100 92 C 128 92 152 118 152 150 C 152 178 132 200 116 208 L 116 214 L 84 214 L 84 208 C 68 200 48 178 48 150 C 48 118 72 92 100 92 Z"/>
+      <path class="glass" d="M84 214 L116 214 L116 226 L84 226 Z" stroke-width="2"/>
+
+      <!-- 灯丝支架 -->
+      <path class="filament" d="M93 108 L93 138 M107 108 L107 138"/>
+      <!-- 灯丝（发光层 + 本体） -->
+      <path class="filament-glow" d="M93 138 L96 156 L100 143 L104 156 L107 138"/>
+      <path class="filament"      d="M93 138 L96 156 L100 143 L104 156 L107 138"/>
+
+      <!-- 光芒 -->
+      <g class="rays">
+        <line class="ray" x1="100" y1="86"  x2="100" y2="72"/>
+        <line class="ray" x1="146" y1="104" x2="158" y2="94"/>
+        <line class="ray" x1="168" y1="150" x2="184" y2="150"/>
+        <line class="ray" x1="146" y1="196" x2="158" y2="206"/>
+        <line class="ray" x1="54"  y1="104" x2="42"  y2="94"/>
+        <line class="ray" x1="32"  y1="150" x2="16"  y2="150"/>
+        <line class="ray" x1="54"  y1="196" x2="42"  y2="206"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="panel">
+    <div class="title">客厅吊灯</div>
+    <div class="status" id="status">当前状态：<b>已关闭</b></div>
+
+    <div class="switch-row">
+      <button class="switch" id="switch" role="switch" aria-checked="false" aria-label="灯泡开关"></button>
+      <span class="switch-label" id="switchLabel">关</span>
+      <span class="hint">空格键 / 点击灯泡</span>
+    </div>
+
+    <div class="brightness disabled" id="brightnessBox">
+      <div class="brightness-head">
+        <span>亮度</span>
+        <span id="pctText">70%</span>
+      </div>
+      <input type="range" id="range" min="10" max="100" value="70" aria-label="亮度调节">
+    </div>
+
+    <div class="counter">
+      <span>今日开关次数</span>
+      <span id="count">0</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  const scene   = document.getElementById('scene');
+  const sw      = document.getElementById('switch');
+  const label   = document.getElementById('switchLabel');
+  const status  = document.getElementById('status');
+  const box     = document.getElementById('brightnessBox');
+  const range   = document.getElementById('range');
+  const pctText = document.getElementById('pctText');
+  const countEl = document.getElementById('count');
+
+  let on = false;
+  let count = 0;
+
+  function render(){
+    scene.classList.toggle('is-on', on);
+    sw.setAttribute('aria-checked', String(on));
+
+    const pct = Number(range.value);
+    range.style.setProperty('--pct', pct + '%');
+    pctText.textContent = pct + '%';
+
+    if (on) {
+      label.textContent = '开';
+      status.innerHTML = '当前状态：<b>已点亮 · ' + pct + '%</b>';
+      // 亮度联动：房间底色 + 光晕强度
+      const k = pct / 100;
+      scene.style.background =
+        'linear-gradient(180deg,' +
+        'rgba(74,68,54,' + (0.35 + 0.65 * k) + ') 0%,' +
+        'rgba(107,95,69,' + (0.35 + 0.65 * k) + ') 55%,' +
+        'rgba(138,122,88,' + (0.30 + 0.70 * k) + ') 100%)';
+      scene.querySelector('.halo').style.opacity = 0.35 + 0.65 * k;
+      scene.querySelector('.floor').style.opacity = 0.25 + 0.75 * k;
+    } else {
+      label.textContent = '关';
+      status.innerHTML = '当前状态：<b>已关闭</b>';
+      scene.style.background = '';
+      scene.querySelector('.halo').style.opacity = 0;
+      scene.querySelector('.floor').style.opacity = 0;
+    }
+
+    box.classList.toggle('disabled', !on);
+    range.disabled = !on;
+  }
+
+  function toggle(){
+    on = !on;
+    count++;
+    countEl.textContent = count;
+    render();
+  }
+
+  sw.addEventListener('click', toggle);
+  scene.addEventListener('click', toggle);
+  scene.addEventListener('keydown', e => {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(); }
+  });
+  range.addEventListener('input', render);
+
+  render();
+</script>
+
+</body>
+</html>
